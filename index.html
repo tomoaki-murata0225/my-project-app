@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>応募者自動返信シミュレーション</title>
+    <!-- Tailwind CSS CDNを読み込み -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Interフォントを適用 */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        /* カスタムスクロールバー */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+    </style>
+</head>
+<body>
+    <div class="container bg-white p-8 rounded-xl shadow-lg w-full max-w-2xl">
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-8">応募者自動返信シミュレーション</h1>
+
+        <!-- ユーザーID表示エリア -->
+        <div id="userIdDisplay" class="text-sm text-gray-600 mb-4 text-center"></div>
+
+        <form id="applicationForm" class="space-y-6">
+            <div>
+                <label for="applicantName" class="block text-gray-700 text-sm font-semibold mb-2">お名前</label>
+                <input type="text" id="applicantName" name="applicantName" required
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 ease-in-out"
+                       placeholder="例：山田 太郎">
+            </div>
+            <div>
+                <label for="applicantEmail" class="block text-gray-700 text-sm font-semibold mb-2">メールアドレス</label>
+                <input type="email" id="applicantEmail" name="applicantEmail" required
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 ease-in-out"
+                       placeholder="例：your.email@example.com">
+            </div>
+            <div>
+                <label for="jobTitle" class="block text-gray-700 text-sm font-semibold mb-2">応募職種</label>
+                <input type="text" id="jobTitle" name="jobTitle" required
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 ease-in-out"
+                       placeholder="例：営業職">
+            </div>
+            <!-- 性別 -->
+            <div>
+                <label for="applicantGender" class="block text-gray-700 text-sm font-semibold mb-2">性別</label>
+                <select id="applicantGender" name="applicantGender" required
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 ease-in-out">
+                    <option value="">選択してください</option>
+                    <option value="男性">男性</option>
+                    <option value="女性">女性</option>
+                    <option value="その他">その他</option>
+                </select>
+            </div>
+            <!-- 年代 -->
+            <div>
+                <label for="applicantAgeGroup" class="block text-gray-700 text-sm font-semibold mb-2">年代</label>
+                <select id="applicantAgeGroup" name="applicantAgeGroup" required
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 ease-in-out">
+                    <option value="">選択してください</option>
+                    <option value="10代">10代</option>
+                    <option value="20代">20代</option>
+                    <option value="30代">30代</option>
+                    <option value="40代">40代</option>
+                    <option value="50代">50代</option>
+                    <option value="60代以上">60代以上</option>
+                </select>
+            </div>
+            <!-- 変更された項目：WEB面談希望日 -->
+            <div>
+                <label for="desiredInterviewDates" class="block text-gray-700 text-sm font-semibold mb-2">WEB面談希望日</label>
+                <textarea id="desiredInterviewDates" name="desiredInterviewDates" rows="5"
+                          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 ease-in-out"
+                          placeholder="例：
+・2025年7月20日(日) 10:00～
+・2025年7月21日(月) 14:00～
+・2025年7月22日(火) 16:00～
+※所要時間30分"></textarea>
+            </div>
+            <button type="submit"
+                    class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition duration-300 ease-in-out transform hover:scale-105">
+                応募する
+            </button>
+        </form>
+
+        <!-- ローディングインジケーター -->
+        <div id="loadingIndicator" class="hidden text-center mt-6">
+            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500 mx-auto"></div>
+            <p class="mt-3 text-gray-600">自動返信メールを生成中...</p>
+        </div>
+
+        <!-- 自動返信メール表示エリア -->
+        <div id="emailOutput" class="mt-8 p-6 bg-gray-50 border border-gray-200 rounded-xl hidden">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">生成された自動返信メール（シミュレーション）</h2>
+            <div class="whitespace-pre-wrap text-gray-700" id="emailContent"></div>
+            <a id="googleCalendarLink" target="_blank" rel="noopener noreferrer"
+               class="hidden mt-6 w-full text-center bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 transition duration-300 ease-in-out transform hover:scale-105">
+                🗓️ Googleカレンダーに追加
+            </a>
+            <button id="closeEmailOutput"
+                    class="mt-6 w-full bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-50 transition duration-300 ease-in-out">
+                閉じる
+            </button>
+        </div>
+
+        <!-- エラーメッセージ表示エリア -->
+        <div id="errorMessage" class="hidden mt-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg" role="alert">
+            <p class="font-bold">エラーが発生しました。</p>
+            <p id="errorText"></p>
+        </div>
+    </div>
+
+    <script type="module">
+        // Firebase SDKのインポート
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // グローバル変数として提供されるFirebase設定と認証トークン
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        let app;
+        let auth;
+        let db;
+        let currentUserId = 'unknown'; // Initial value
+
+        const userIdDisplay = document.getElementById('userIdDisplay');
+        const applicationForm = document.getElementById('applicationForm');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const emailOutput = document.getElementById('emailOutput');
+        const emailContent = document.getElementById('emailContent');
+        const closeEmailOutputButton = document.getElementById('closeEmailOutput');
+        const googleCalendarLink = document.getElementById('googleCalendarLink'); // New Google Calendar link element
+        const errorMessageDiv = document.getElementById('errorMessage');
+        const errorText = document.getElementById('errorText');
+        const desiredInterviewDatesTextarea = document.getElementById('desiredInterviewDates'); // Textarea for desired interview dates
+
+        /**
+         * Initializes Firebase and monitors authentication state.
+         */
+        async function initializeFirebase() {
+            try {
+                if (Object.keys(firebaseConfig).length > 0) {
+                    app = initializeApp(firebaseConfig);
+                    auth = getAuth(app);
+                    db = getFirestore(app);
+
+                    // Monitor authentication state changes
+                    onAuthStateChanged(auth, (user) => {
+                        if (user) {
+                            currentUserId = user.uid;
+                            userIdDisplay.textContent = `現在のユーザーID: ${currentUserId}`;
+                            console.log("Firebase User ID:", currentUserId);
+                        } else {
+                            // If user signs out or anonymous authentication fails
+                            currentUserId = crypto.randomUUID(); // Generate anonymous user ID
+                            userIdDisplay.textContent = `現在のユーザーID (匿名): ${currentUserId}`;
+                            console.log("Firebase user not signed in. Anonymous ID:", currentUserId);
+                        }
+                    });
+
+                    // Use initial auth token if available, otherwise sign in anonymously
+                    if (initialAuthToken) {
+                        await signInWithCustomToken(auth, initialAuthToken);
+                        console.log("Signed in with custom token.");
+                    } else {
+                        await signInAnonymously(auth);
+                        console.log("Signed in anonymously.");
+                    }
+                } else {
+                    console.warn("Firebase configuration not provided. Firebase features will not be available.");
+                    userIdDisplay.textContent = `Firebaseは初期化されていません。匿名ID: ${crypto.randomUUID()}`;
+                }
+            } catch (error) {
+                console.error("Firebase initialization or authentication error:", error);
+                showError("Firebaseの初期化中にエラーが発生しました。");
+                userIdDisplay.textContent = `Firebaseエラー。匿名ID: ${crypto.randomUUID()}`;
+            }
+        }
+
+        /**
+         * Displays an error message.
+         * @param {string} message - The error message to display.
+         */
+        function showError(message) {
+            errorText.textContent = message;
+            errorMessageDiv.classList.remove('hidden');
+            loadingIndicator.classList.add('hidden');
+            emailOutput.classList.add('hidden');
+            googleCalendarLink.classList.add('hidden'); // Hide calendar link on error
+        }
+
+        /**
+         * Hides the error message.
+         */
+        function hideError() {
+            errorMessageDiv.classList.add('hidden');
+            errorText.textContent = '';
+        }
+
+        /**
+         * Parses a date string and returns a Date object.
+         * Attempts to parse formats like "YYYY年M月D日(曜日) H:M～".
+         * @param {string} dateString - The date string to parse.
+         * @returns {Date|null} Parsed Date object or null if parsing fails.
+         */
+        function parseJapaneseDate(dateString) {
+            const match = dateString.match(/(\d{4})年(\d{1,2})月(\d{1,2})日\(.+\)\s*(\d{1,2}):(\d{2})～?/);
+            if (match) {
+                const year = parseInt(match[1]);
+                const month = parseInt(match[2]) - 1; // Month is 0-indexed
+                const day = parseInt(match[3]);
+                const hour = parseInt(match[4]);
+                const minute = parseInt(match[5]);
+                return new Date(year, month, day, hour, minute);
+            }
+            return null;
+        }
+
+        /**
+         * Formats a Date object to Google Calendar's required datetime format (YYYYMMDDTHHMMSSZ).
+         * Assumes local time and converts to UTC for the link.
+         * @param {Date} date - The Date object to format.
+         * @returns {string} Formatted datetime string.
+         */
+        function formatGoogleCalendarDateTime(date) {
+            if (!date) return '';
+            const year = date.getFullYear();
+            const month = (date.getMonth() + 1).toString().padStart(2, '0');
+            const day = date.getDate().toString().padStart(2, '0');
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            const seconds = date.getSeconds().toString().padStart(2, '0');
+            return `${year}${month}${day}T${hours}${minutes}${seconds}`;
+        }
+
+        /**
+         * Creates a Google Calendar event URL.
+         * @param {string} applicantName - The name of the applicant.
+         * @param {string} jobTitle - The job title applied for.
+         * @param {string} desiredDatesText - The raw text from the desired interview dates textarea.
+         * @returns {string} The Google Calendar event URL.
+         */
+        function createGoogleCalendarLink(applicantName, jobTitle, desiredDatesText) {
+            const eventTitle = encodeURIComponent(`WEB面談: ${applicantName}様 (${jobTitle})`);
+            const eventDetails = encodeURIComponent(`人材紹介会社によるWEB面談です。\n\n応募者: ${applicantName}様\n応募職種: ${jobTitle}\n\n希望日: ${desiredDatesText || '未定'}\n\n所要時間: 30分`); // 詳細に所要時間を変更
+            const location = encodeURIComponent('オンライン面談 (URLは別途ご連絡)');
+
+            let startDate = new Date(); // Default to now
+            let endDate = new Date(startDate.getTime() + 30 * 60 * 1000); // Default to 30 minutes later
+
+            // Try to parse the first line of desiredDatesText
+            const firstLine = desiredDatesText.split('\n')[0].trim();
+            const parsedDate = parseJapaneseDate(firstLine);
+
+            if (parsedDate) {
+                startDate = parsedDate;
+                endDate = new Date(startDate.getTime() + 30 * 60 * 1000); // Assume 30 minutes duration
+            } else {
+                // If parsing fails, use a generic future date/time
+                startDate.setDate(startDate.getDate() + 3); // 3 days from now
+                startDate.setHours(10, 0, 0, 0); // 10:00 AM
+                endDate = new Date(startDate.getTime() + 30 * 60 * 1000);
+            }
+
+            const formattedStartDate = formatGoogleCalendarDateTime(startDate);
+            const formattedEndDate = formatGoogleCalendarDateTime(endDate);
+
+            return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${eventTitle}&details=${eventDetails}&location=${location}&dates=${formattedStartDate}/${formattedEndDate}`;
+        }
+
+        /**
+         * Calls the Gemini API to generate the auto-reply email content.
+         * @param {string} applicantName - Applicant's name.
+         * @param {string} applicantEmail - Applicant's email address.
+         * @param {string} jobTitle - Applied job title.
+         * @param {string} applicantGender - Applicant's gender.
+         * @param {string} applicantAgeGroup - Applicant's age group.
+         * @param {string} desiredInterviewDates - Desired interview dates provided by the applicant.
+         * @returns {Promise<string>} Generated email body.
+         */
+        async function generateAutoReplyEmail(applicantName, applicantEmail, jobTitle, applicantGender, applicantAgeGroup, desiredInterviewDates) {
+            let prompt = `
+            あなたは人材紹介会社の採用担当者です。
+            以下の応募者情報に基づいて、丁寧な自動返信メールを作成してください。
+
+            ---
+            応募者名: ${applicantName}
+            応募者メールアドレス: ${applicantEmail}
+            応募職種: ${jobTitle}
+            性別: ${applicantGender}
+            年代: ${applicantAgeGroup}
+            ---
+
+            上記の性別と年代の情報を考慮し、メールのトーンや表現を適切に調整してください。
+            ただし、常に丁寧でプロフェッショナルな言葉遣いを維持し、不適切な表現は避けてください。
+            メールの件名は「【株式会社〇〇】応募受付のご連絡」としてください。
+            本文には、応募への感謝、応募が正常に受け付けられたこと、今後の選考の流れ（担当者から改めて連絡すること）、
+            そして問い合わせ先（メールアドレスと電話番号）を記載してください。
+            会社名は「株式会社〇〇」、メールアドレスは「example@example.com」、電話番号は「XXX-XXXX-XXXX」を使用してください。
+            `;
+
+            // 希望WEB面談日が含まれていればプロンプトに追加
+            if (desiredInterviewDates.trim() !== '') {
+                prompt += `
+
+            応募者様より以下のWEB面談希望日をいただいております。
+            ${desiredInterviewDates}
+            これらの日程を考慮し、面談調整を進めてください。
+            `;
+            }
+
+            let chatHistory = [];
+            chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+
+            const payload = { contents: chatHistory };
+            const apiKey = ""; // Provided automatically in Canvas environment
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(`APIエラー: ${response.status} - ${errorData.error.message || response.statusText}`);
+                }
+
+                const result = await response.json();
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    return result.candidates[0].content.parts[0].text;
+                } else {
+                    throw new Error("APIからの応答が期待される形式ではありませんでした。");
+                }
+            } catch (error) {
+                console.error("Gemini API call error:", error);
+                throw new Error("自動返信メールの生成に失敗しました。");
+            }
+        }
+
+        /**
+         * Handles form submission.
+         */
+        applicationForm.addEventListener('submit', async (event) => {
+            event.preventDefault(); // Prevent default form submission
+
+            hideError(); // Hide error message
+            emailOutput.classList.add('hidden'); // Hide previous email output
+            googleCalendarLink.classList.add('hidden'); // Hide calendar link
+            loadingIndicator.classList.remove('hidden'); // Show loading indicator
+
+            const applicantName = document.getElementById('applicantName').value;
+            const applicantEmail = document.getElementById('applicantEmail').value;
+            const jobTitle = document.getElementById('jobTitle').value;
+            const applicantGender = document.getElementById('applicantGender').value;
+            const applicantAgeGroup = document.getElementById('applicantAgeGroup').value;
+            const desiredInterviewDates = desiredInterviewDatesTextarea.value; // Get value from textarea
+
+            try {
+                const generatedEmail = await generateAutoReplyEmail(applicantName, applicantEmail, jobTitle, applicantGender, applicantAgeGroup, desiredInterviewDates);
+                emailContent.textContent = generatedEmail;
+                emailOutput.classList.remove('hidden'); // Show email output
+
+                // Generate and show Google Calendar link
+                const calendarUrl = createGoogleCalendarLink(applicantName, jobTitle, desiredInterviewDates);
+                googleCalendarLink.href = calendarUrl;
+                googleCalendarLink.classList.remove('hidden');
+
+            } catch (error) {
+                showError(error.message);
+            } finally {
+                loadingIndicator.classList.add('hidden'); // Hide loading indicator
+            }
+        });
+
+        /**
+         * Handles click on the close email output button.
+         */
+        closeEmailOutputButton.addEventListener('click', () => {
+            emailOutput.classList.add('hidden');
+            googleCalendarLink.classList.add('hidden'); // Hide calendar link when closing email output
+            // Form reset is limited to completion of application
+            // applicationForm.reset();
+        });
+
+        // Initialize Firebase when the window loads
+        window.onload = initializeFirebase;
+    </script>
+</body>
+</html>
